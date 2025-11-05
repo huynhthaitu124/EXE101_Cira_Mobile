@@ -27,7 +27,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
-import { ExpoWebSpeechRecognition } from 'expo-speech-recognition';
+
+// Voice recognition disabled - requires native build
+// import { ExpoWebSpeechRecognition } from 'expo-speech-recognition';
 
 const { width, height } = Dimensions.get('window');
 
@@ -56,7 +58,7 @@ export default function HomeScreen({ navigation }: any) {
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'ai', message: string}>>([]);
   const cameraRef = useRef<CameraView>(null);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const recognitionRef = useRef<ExpoWebSpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
   
   // Animation values for voice wave
   const waveAnimation1 = useRef(new Animated.Value(1)).current;
@@ -76,46 +78,9 @@ export default function HomeScreen({ navigation }: any) {
         await requestMediaLibraryPermission();
       }
       
-      // Initialize speech recognition
-      recognitionRef.current = new ExpoWebSpeechRecognition();
-      recognitionRef.current.lang = 'vi-VN';
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.maxAlternatives = 1;
-      
-      // Set up event listeners
-      recognitionRef.current.onresult = (event) => {
-        const results = event.results;
-        if (results && results.length > 0) {
-          const transcript = Array.from(results)
-            .map((result) => result[0]?.transcript || '')
-            .join('');
-          setRecognizedText(transcript);
-        }
-      };
-      
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        Alert.alert('Lỗi nhận diện giọng nói', event.error || 'Có lỗi xảy ra');
-        setIsRecording(false);
-      };
-      
-      recognitionRef.current.onend = () => {
-        console.log('Speech recognition ended');
-        setIsRecording(false);
-      };
+      // Voice recognition disabled - requires native build
+      // To enable: run npx expo run:ios or npx expo run:android
     })();
-    
-    // Cleanup
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-    };
   }, []);
 
   const toggleCameraFacing = () => {
@@ -256,18 +221,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const startVoiceRecording = async () => {
     try {
-      if (!recognitionRef.current) {
-        throw new Error('Speech recognition not initialized');
-      }
-      
-      // Haptic feedback when starting
+      // Voice recognition disabled - show demo animation only
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setIsRecording(true);
       setRecognizedText('');
-      
-      // Start speech recognition
-      recognitionRef.current.start();
-      console.log('Speech recognition started');
       
       // Start wave animations
       const createWaveAnimation = (animValue: Animated.Value, delay: number) => {
@@ -288,27 +245,26 @@ export default function HomeScreen({ navigation }: any) {
         );
       };
 
-    Animated.parallel([
-      createWaveAnimation(waveAnimation1, 0),
-      createWaveAnimation(waveAnimation2, 100),
-      createWaveAnimation(waveAnimation3, 200),
-      createWaveAnimation(waveAnimation4, 300),
-      createWaveAnimation(waveAnimation5, 400),
-    ]).start();
+      Animated.parallel([
+        createWaveAnimation(waveAnimation1, 0),
+        createWaveAnimation(waveAnimation2, 100),
+        createWaveAnimation(waveAnimation3, 200),
+        createWaveAnimation(waveAnimation4, 300),
+        createWaveAnimation(waveAnimation5, 400),
+      ]).start();
+      
+      // Demo text after 2 seconds
+      setTimeout(() => {
+        setRecognizedText('Demo: Chức năng này cần build native app để hoạt động.');
+      }, 2000);
     } catch (error) {
-      console.error('Error starting speech recognition:', error);
-      Alert.alert('Lỗi', 'Không thể bắt đầu nhận diện giọng nói. Vui lòng thử lại.');
+      console.error('Error:', error);
       setIsRecording(false);
     }
   };
 
   const stopVoiceRecording = async () => {
     try {
-      if (recognitionRef.current) {
-        // Stop speech recognition
-        recognitionRef.current.stop();
-      }
-      
       // Haptic feedback when stopping
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setIsRecording(false);
@@ -326,13 +282,8 @@ export default function HomeScreen({ navigation }: any) {
       waveAnimation3.setValue(1);
       waveAnimation4.setValue(1);
       waveAnimation5.setValue(1);
-      
-      // Show recognized text
-      if (recognizedText) {
-        console.log('Recognized text:', recognizedText);
-      }
     } catch (error) {
-      console.error('Error stopping speech recognition:', error);
+      console.error('Error:', error);
       setIsRecording(false);
     }
   };
