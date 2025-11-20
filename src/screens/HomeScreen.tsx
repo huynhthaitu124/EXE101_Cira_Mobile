@@ -6,17 +6,18 @@ import {
   FlatList,
   View,
   StatusBar,
-  Animated,
-  Pressable,
-  TextInput,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  ScrollView,
   Alert,
+  ImageBackground,
+  TextInput,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as ImageManipulator from 'expo-image-manipulator';
 import {
   Box,
   VStack,
@@ -27,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import * as Haptics from 'expo-haptics';
+import AIBubble from '../components/AIBubble';
 
 // Voice recognition disabled - requires native build
 // import { ExpoWebSpeechRecognition } from 'expo-speech-recognition';
@@ -47,26 +49,26 @@ export default function HomeScreen({ navigation }: any) {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [mediaLibraryPermission, requestMediaLibraryPermission] = MediaLibrary.usePermissions();
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [dominantColor, setDominantColor] = useState<string>('#000000');
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [photoCaption, setPhotoCaption] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPressing, setIsPressing] = useState(false);
-  const [recognizedText, setRecognizedText] = useState('');
-  const [isChatModalVisible, setIsChatModalVisible] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'ai', message: string}>>([]);
+  const [isTypingCaption, setIsTypingCaption] = useState(false);
+  const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
+  const [showChapterDropdown, setShowChapterDropdown] = useState(false);
+  const [showNewChapterForm, setShowNewChapterForm] = useState(false);
+  const [newChapterName, setNewChapterName] = useState('');
+  const [newChapterDescription, setNewChapterDescription] = useState('');
   const cameraRef = useRef<CameraView>(null);
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const recognitionRef = useRef<any>(null);
-  
-  // Animation values for voice wave
-  const waveAnimation1 = useRef(new Animated.Value(1)).current;
-  const waveAnimation2 = useRef(new Animated.Value(1)).current;
-  const waveAnimation3 = useRef(new Animated.Value(1)).current;
-  const waveAnimation4 = useRef(new Animated.Value(1)).current;
-  const waveAnimation5 = useRef(new Animated.Value(1)).current;
-  const pressAnimation = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Mock chapters data - Replace with API call
+  const myChapters = [
+    { id: '1', title: 'Summer Vacation 2024', icon: '🏖️' },
+    { id: '2', title: 'Birthday Celebration', icon: '🎂' },
+    { id: '3', title: 'Mountain Adventure', icon: '⛰️' },
+    { id: '4', title: 'Family Gathering', icon: '👨‍👩‍👧‍👦' },
+  ];
 
   useEffect(() => {
     // Request permissions on mount
@@ -95,7 +97,38 @@ export default function HomeScreen({ navigation }: any) {
         });
         
         if (photo) {
-          setCapturedPhoto(photo.uri);
+          let finalUri = photo.uri;
+          
+          // Flip image if using front camera
+          if (facing === 'front') {
+            const flippedImage = await ImageManipulator.manipulateAsync(
+              photo.uri,
+              [{ flip: ImageManipulator.FlipType.Horizontal }],
+              { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            finalUri = flippedImage.uri;
+          }
+          
+          setCapturedPhoto(finalUri);
+          
+          // Generate a beautiful color palette for background
+          // Based on common photo scenarios: sunset, nature, indoor, etc.
+          const colorPalettes = [
+            '#FF6B6B', // Warm red/coral - sunset, love
+            '#4ECDC4', // Teal - beach, water
+            '#95E1D3', // Mint - nature, fresh
+            '#F38181', // Pink - celebration, joy
+            '#AA96DA', // Purple - evening, calm
+            '#FCBAD3', // Light pink - family, warmth
+            '#FFD93D', // Yellow - happiness, energy
+            '#6BCB77', // Green - nature, outdoor
+            '#4D96FF', // Blue - sky, peace
+            '#FF8787', // Salmon - warm memories
+          ];
+          
+          // Pick a random color for variety
+          const randomColor = colorPalettes[Math.floor(Math.random() * colorPalettes.length)];
+          setDominantColor(randomColor);
           
           // Generate AI suggested tags based on image content
           // TODO: Replace with actual AI image recognition API
@@ -136,11 +169,18 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
 
-  const postPhotoToFeed = async () => {
-    if (capturedPhoto && selectedTags.length > 0) {
-      // TODO: Upload photo and tags to backend/feed
-      console.log('Posting photo with tags:', selectedTags);
-      
+  const handleCreateNewChapter = () => {
+    Keyboard.dismiss();
+    setShowNewChapterForm(true);
+    setShowChapterDropdown(false);
+    // Scroll to bottom to show form above keyboard
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
+  const createNewChapterWithPhoto = async () => {
+    if (capturedPhoto && newChapterName.trim()) {
       // Save to library
       if (mediaLibraryPermission?.granted) {
         try {
@@ -149,16 +189,59 @@ export default function HomeScreen({ navigation }: any) {
           console.error('Error saving photo:', error);
         }
       }
+
+      // TODO: Create new chapter with this photo
+      // photoCaption is used as the photo description
+      console.log('Creating new chapter:', {
+        name: newChapterName,
+        description: newChapterDescription,
+        photo: capturedPhoto,
+        tags: selectedTags,
+        photoDescription: photoCaption, // Caption becomes photo description
+      });
       
       // Reset state
       setCapturedPhoto(null);
       setSuggestedTags([]);
       setSelectedTags([]);
       setPhotoCaption('');
+      setSelectedChapter(null);
+      setShowNewChapterForm(false);
+      setNewChapterName('');
+      setNewChapterDescription('');
       
       // Show success message
-      // TODO: Add toast/alert notification
-      console.log('Photo posted successfully!');
+      Alert.alert('Success', `Chapter "${newChapterName}" created with your photo!`);
+    }
+  };
+
+  const addPhotoToChapter = async (chapterId: string | null) => {
+    if (capturedPhoto) {
+      // Save to library
+      if (mediaLibraryPermission?.granted) {
+        try {
+          await MediaLibrary.saveToLibraryAsync(capturedPhoto);
+        } catch (error) {
+          console.error('Error saving photo:', error);
+        }
+      }
+
+      // TODO: Add photo to existing chapter
+      // photoCaption is used as the photo description
+      console.log('Adding photo to chapter:', chapterId);
+      console.log('Tags:', selectedTags);
+      console.log('Photo description:', photoCaption); // Caption becomes photo description
+      
+      // Reset state
+      setCapturedPhoto(null);
+      setSuggestedTags([]);
+      setSelectedTags([]);
+      setPhotoCaption('');
+      setSelectedChapter(null);
+      setShowChapterDropdown(false);
+      
+      // Show success message
+      Alert.alert('Success', 'Photo added to chapter!');
     }
   };
 
@@ -177,142 +260,18 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const retakePhoto = () => {
+    Keyboard.dismiss();
     setCapturedPhoto(null);
+    setDominantColor('#000000'); // Reset to black
     setSuggestedTags([]);
     setSelectedTags([]);
     setPhotoCaption('');
-  };
-
-  const handlePressIn = () => {
-    setIsPressing(true);
-    
-    // Start progress animation
-    Animated.timing(pressAnimation, {
-      toValue: 1,
-      duration: 2000,
-      useNativeDriver: false,
-    }).start();
-
-    // Set timer for 2 seconds
-    holdTimerRef.current = setTimeout(() => {
-      startVoiceRecording();
-    }, 2000);
-  };
-
-  const handlePressOut = () => {
-    setIsPressing(false);
-    
-    // Clear timer if released before 2 seconds
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-
-    // Stop and reset progress animation immediately
-    pressAnimation.stopAnimation(() => {
-      pressAnimation.setValue(0);
-    });
-
-    // Stop recording if it was started
-    if (isRecording) {
-      stopVoiceRecording();
-    }
-  };
-
-  const startVoiceRecording = async () => {
-    try {
-      // Voice recognition disabled - show demo animation only
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setIsRecording(true);
-      setRecognizedText('');
-      
-      // Start wave animations
-      const createWaveAnimation = (animValue: Animated.Value, delay: number) => {
-        return Animated.loop(
-          Animated.sequence([
-            Animated.timing(animValue, {
-              toValue: 1.5,
-              duration: 400,
-              delay,
-              useNativeDriver: true,
-            }),
-            Animated.timing(animValue, {
-              toValue: 1,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ])
-        );
-      };
-
-      Animated.parallel([
-        createWaveAnimation(waveAnimation1, 0),
-        createWaveAnimation(waveAnimation2, 100),
-        createWaveAnimation(waveAnimation3, 200),
-        createWaveAnimation(waveAnimation4, 300),
-        createWaveAnimation(waveAnimation5, 400),
-      ]).start();
-      
-      // Demo text after 2 seconds
-      setTimeout(() => {
-        setRecognizedText('Demo: Chức năng này cần build native app để hoạt động.');
-      }, 2000);
-    } catch (error) {
-      console.error('Error:', error);
-      setIsRecording(false);
-    }
-  };
-
-  const stopVoiceRecording = async () => {
-    try {
-      // Haptic feedback when stopping
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setIsRecording(false);
-      
-      // Stop all animations
-      waveAnimation1.stopAnimation();
-      waveAnimation2.stopAnimation();
-      waveAnimation3.stopAnimation();
-      waveAnimation4.stopAnimation();
-      waveAnimation5.stopAnimation();
-      
-      // Reset to original values
-      waveAnimation1.setValue(1);
-      waveAnimation2.setValue(1);
-      waveAnimation3.setValue(1);
-      waveAnimation4.setValue(1);
-      waveAnimation5.setValue(1);
-    } catch (error) {
-      console.error('Error:', error);
-      setIsRecording(false);
-    }
-  };
-
-  const expandChat = () => {
-    setIsChatModalVisible(true);
-  };
-
-  const closeChat = () => {
-    setIsChatModalVisible(false);
-    Keyboard.dismiss();
-  };
-
-  const sendMessage = () => {
-    if (chatMessage.trim()) {
-      // Add user message to history
-      setChatHistory([...chatHistory, { role: 'user', message: chatMessage.trim() }]);
-      
-      // TODO: Call AI API and add response
-      // Mock AI response for now
-      setTimeout(() => {
-        setChatHistory(prev => [...prev, { 
-          role: 'ai', 
-          message: 'This is a mock AI response. Integration with actual AI API coming soon!' 
-        }]);
-      }, 1000);
-      
-      setChatMessage('');
-    }
+    setIsTypingCaption(false);
+    setSelectedChapter(null);
+    setShowChapterDropdown(false);
+    setShowNewChapterForm(false);
+    setNewChapterName('');
+    setNewChapterDescription('');
   };
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
@@ -320,93 +279,143 @@ export default function HomeScreen({ navigation }: any) {
     if (item.type === 'camera') {
       return (
         <View style={{ width, height }}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1 }}
-          >
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#000000' }} edges={['top']}>
-              <Box flex={1} bg="#000000">
+          <View style={{ flex: 1, position: 'relative' }}>
+            {/* Background with Gradient Effect After Capture */}
+            <View style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: 0, 
+              right: 0, 
+              bottom: 0,
+              backgroundColor: '#FFFFFF'
+            }}>
+                {capturedPhoto && (
+                  <>
+                    {/* Gradient overlay - extends further down */}
+                    <View style={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: height * 0.65,  // Top 65% of screen (increased from 50%)
+                    }}>
+                      <LinearGradient
+                        colors={[
+                          `${dominantColor}35`,      // Top - visible color
+                          `${dominantColor}25`,      
+                          `${dominantColor}15`,      
+                          `${dominantColor}08`,
+                          `${dominantColor}00`,      // Fully transparent
+                        ]}
+                        locations={[0, 0.3, 0.6, 0.85, 1]}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 1 }}
+                        style={{ flex: 1 }}
+                      />
+                    </View>
+                    {/* Light blur only at top */}
+                    <View style={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: height * 0.65,
+                    }}>
+                      <BlurView 
+                        intensity={6} 
+                        tint="light"
+                        style={{ flex: 1 }} 
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
+
+              <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+                {!capturedPhoto ? (
+                  // No scroll when in camera view
+                  <Box flex={1} position="relative">
               {/* Top Bar - Inside Safe Area */}
-              <Box px={20} py={12} position="relative">
+              <Box px={20} py={12}>
                 <HStack justifyContent="space-between" alignItems="center">
-                  <TouchableOpacity>
-                    <Box
-                      w={36}
-                      h={36}
-                      borderRadius={18}
-                      bg="rgba(255,255,255,0.15)"
-                      justifyContent="center"
-                      alignItems="center"
-                    >
-                      <Ionicons name="person-circle-outline" size={24} color="#FFFFFF" />
-                    </Box>
-                  </TouchableOpacity>
+                  <HStack gap={8}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Dashboard')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        <Ionicons name="arrow-back" size={20} color="#000000" />
+                      </Box>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        <Ionicons name="person-circle-outline" size={24} color="#000000" />
+                      </Box>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                        position="relative"
+                      >
+                        <Ionicons name="notifications-outline" size={20} color="#000000" />
+                        {/* Notification Badge */}
+                        <Box
+                          position="absolute"
+                          top={4}
+                          right={4}
+                          w={8}
+                          h={8}
+                          borderRadius={4}
+                          bg="#E74C3C"
+                          borderWidth={1.5}
+                          borderColor="#FFFFFF"
+                        />
+                      </Box>
+                    </TouchableOpacity>
+                  </HStack>
                   <HStack gap={8}>
                     <TouchableOpacity onPress={() => navigation.navigate('Gallery')}>
                       <Box
                         w={36}
                         h={36}
                         borderRadius={18}
-                        bg="rgba(255,255,255,0.15)"
+                        bg="rgba(0,0,0,0.08)"
                         justifyContent="center"
                         alignItems="center"
                       >
-                        <Ionicons name="images-outline" size={20} color="#FFFFFF" />
+                        <Ionicons name="book-outline" size={20} color="#000000" />
                       </Box>
                     </TouchableOpacity>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Messages')}>
                       <Box
                         w={36}
                         h={36}
                         borderRadius={18}
-                        bg="rgba(255,255,255,0.15)"
+                        bg="rgba(0,0,0,0.08)"
                         justifyContent="center"
                         alignItems="center"
                       >
-                        <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+                        <Ionicons name="chatbubble-outline" size={20} color="#000000" />
                       </Box>
                     </TouchableOpacity>
                   </HStack>
                 </HStack>
-                
-                {/* Everyone Button - Centered Absolutely */}
-                <Box
-                  position="absolute"
-                  left={0}
-                  right={0}
-                  top={12}
-                  alignItems="center"
-                  pointerEvents="box-none"
-                >
-                  <TouchableOpacity onPress={() => navigation.navigate('Feed')}>
-                    <Box
-                      bg="rgba(255,255,255,0.2)"
-                      borderRadius={20}
-                      px={16}
-                      py={8}
-                    >
-                      <HStack alignItems="center" gap={8}>
-                        {/* Notification Badge */}
-                        <Box
-                          bg="#2A2A2A"
-                          borderRadius={10}
-                          minWidth={20}
-                          h={20}
-                          justifyContent="center"
-                          alignItems="center"
-                          px={6}
-                        >
-                          <Text fontSize={11} fontWeight="700" color="#FFFFFF">
-                            3
-                          </Text>
-                        </Box>
-                        <Text fontSize={15} fontWeight="600" color="#FFFFFF">
-                          Everyone
-                        </Text>
-                      </HStack>
-                    </Box>
-                  </TouchableOpacity>
-                </Box>
               </Box>
 
               {/* Camera Preview Area - Real Camera */}
@@ -465,7 +474,7 @@ export default function HomeScreen({ navigation }: any) {
               {capturedPhoto && suggestedTags.length > 0 && (
                 <Box px={20} pt={20} pb={12}>
                   <VStack gap={12}>
-                    <Text fontSize={13} fontWeight="600" color="rgba(255,255,255,0.8)">
+                    <Text fontSize={13} fontWeight="600" color="rgba(0,0,0,0.6)">
                       Suggested tags:
                     </Text>
                     <ScrollView 
@@ -481,17 +490,17 @@ export default function HomeScreen({ navigation }: any) {
                             onPress={() => toggleTag(tag)}
                           >
                             <Box
-                              bg={isSelected ? "#5DADE2" : "rgba(255,255,255,0.15)"}
+                              bg={isSelected ? "#5DADE2" : "rgba(0,0,0,0.08)"}
                               borderRadius={20}
                               px={16}
                               py={8}
                               borderWidth={isSelected ? 0 : 1}
-                              borderColor="rgba(255,255,255,0.3)"
+                              borderColor="rgba(0,0,0,0.15)"
                             >
                               <Text 
                                 fontSize={13} 
                                 fontWeight={isSelected ? "600" : "500"}
-                                color="#FFFFFF"
+                                color={isSelected ? "#FFFFFF" : "#000000"}
                               >
                                 {tag}
                               </Text>
@@ -504,32 +513,73 @@ export default function HomeScreen({ navigation }: any) {
                 </Box>
               )}
 
-              {/* Caption Input - Show after photo capture */}
-              {capturedPhoto && (
+              {/* OLD SECTION - REMOVED */}
+              {capturedPhoto && false && (
                 <Box px={20} pb={12}>
-                  <Box
-                    bg="rgba(255,255,255,0.1)"
-                    borderRadius={16}
-                    borderWidth={1}
-                    borderColor="rgba(255,255,255,0.2)"
-                  >
-                    <TextInput
-                      value={photoCaption}
-                      onChangeText={setPhotoCaption}
-                      placeholder="Add a caption... (optional)"
-                      placeholderTextColor="rgba(255,255,255,0.4)"
-                      multiline
-                      style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 14,
-                        color: '#FFFFFF',
-                        minHeight: 60,
-                        maxHeight: 100,
-                        textAlignVertical: 'top',
-                      }}
-                    />
-                  </Box>
+                  <VStack gap={12}>
+                    <Text fontSize={15} fontWeight="600" color="#2C3E50">
+                      Add to Chapter
+                    </Text>
+                    
+                    {/* Create New Chapter Button */}
+                    <TouchableOpacity onPress={() => addPhotoToChapter('new')}>
+                      <Box
+                        bg="#5DADE2"
+                        borderRadius={16}
+                        p={16}
+                      >
+                        <HStack gap={12} alignItems="center">
+                          <Box
+                            w={40}
+                            h={40}
+                            borderRadius={12}
+                            bg="rgba(255,255,255,0.2)"
+                            justifyContent="center"
+                            alignItems="center"
+                          >
+                            <Ionicons name="add" size={24} color="#FFFFFF" />
+                          </Box>
+                          <VStack flex={1}>
+                            <Text fontSize={15} fontWeight="600" color="#FFFFFF">
+                              Create New Chapter
+                            </Text>
+                            <Text fontSize={12} color="rgba(255,255,255,0.8)">
+                              Start a new story
+                            </Text>
+                          </VStack>
+                          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                        </HStack>
+                      </Box>
+                    </TouchableOpacity>
+
+                    {/* Existing Chapters */}
+                    <VStack gap={8}>
+                      {myChapters.map((chapter) => (
+                        <TouchableOpacity 
+                          key={chapter.id}
+                          onPress={() => addPhotoToChapter(chapter.id)}
+                        >
+                          <Box
+                            bg={selectedChapter === chapter.id ? 'rgba(93,173,226,0.1)' : 'rgba(0,0,0,0.05)'}
+                            borderRadius={12}
+                            p={14}
+                            borderWidth={selectedChapter === chapter.id ? 1 : 0}
+                            borderColor="#5DADE2"
+                          >
+                            <HStack gap={12} alignItems="center">
+                              <Text fontSize={24}>
+                                {chapter.icon}
+                              </Text>
+                              <Text fontSize={14} fontWeight="500" color="#2C3E50" flex={1}>
+                                {chapter.title}
+                              </Text>
+                              <Ionicons name="chevron-forward" size={18} color="#95A5A6" />
+                            </HStack>
+                          </Box>
+                        </TouchableOpacity>
+                      ))}
+                    </VStack>
+                  </VStack>
                 </Box>
               )}
 
@@ -541,37 +591,63 @@ export default function HomeScreen({ navigation }: any) {
                       w={42}
                       h={42}
                       borderRadius={12}
-                      bg="rgba(255,255,255,0.15)"
+                      bg="rgba(0,0,0,0.08)"
                       justifyContent="center"
                       alignItems="center"
                     >
-                      <Ionicons name="images-outline" size={20} color="#FFFFFF" />
+                      <Ionicons name="images-outline" size={20} color="#000000" />
                     </Box>
                   </TouchableOpacity>
 
-                  {/* Main Button - Capture or Post */}
+                  {/* Main Button - Capture or Next */}
                   <TouchableOpacity 
-                    onPress={capturedPhoto ? (selectedTags.length > 0 ? postPhotoToFeed : savePhoto) : takePicture} 
-                    disabled={!cameraPermission?.granted}
+                    onPress={capturedPhoto ? savePhoto : takePicture} 
+                    disabled={!cameraPermission?.granted && !capturedPhoto}
                   >
+                    {/* Outer black border */}
                     <Box
-                      w={62}
-                      h={62}
-                      borderRadius={31}
-                      bg={capturedPhoto ? (selectedTags.length > 0 ? "#5DADE2" : "#34C759") : "#FFFFFF"}
-                      borderWidth={4}
-                      borderColor={capturedPhoto ? (selectedTags.length > 0 ? "rgba(93,173,226,0.3)" : "rgba(52,199,89,0.3)") : "rgba(255,255,255,0.3)"}
-                      opacity={cameraPermission?.granted ? 1 : 0.5}
+                      w={74}
+                      h={74}
+                      borderRadius={37}
+                      bg="#000000"
                       justifyContent="center"
                       alignItems="center"
+                      opacity={(cameraPermission?.granted || capturedPhoto) ? 1 : 0.5}
                     >
-                      {capturedPhoto && (
-                        <Ionicons 
-                          name={selectedTags.length > 0 ? "paper-plane" : "checkmark"} 
-                          size={selectedTags.length > 0 ? 24 : 32} 
-                          color="#FFFFFF" 
-                        />
-                      )}
+                      {/* White gap */}
+                      <Box
+                        w={66}
+                        h={66}
+                        borderRadius={33}
+                        bg="#FFFFFF"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        {/* Inner colored button with gradient */}
+                        <LinearGradient
+                          colors={capturedPhoto 
+                            ? ['#34C759', '#34C759']
+                            : ['#4ECDC4', '#5DADE2', '#667EEA']
+                          }
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{
+                            width: 58,
+                            height: 58,
+                            borderRadius: 29,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {capturedPhoto && (
+                            <Ionicons 
+                              name="checkmark" 
+                              size={32} 
+                              color="#FFFFFF" 
+                            />
+                          )}
+                        </LinearGradient>
+                      </Box>
                     </Box>
                   </TouchableOpacity>
 
@@ -586,7 +662,7 @@ export default function HomeScreen({ navigation }: any) {
                       w={42}
                       h={42}
                       borderRadius={12}
-                      bg="rgba(255,255,255,0.15)"
+                      bg="rgba(0,0,0,0.08)"
                       justifyContent="center"
                       alignItems="center"
                       opacity={(cameraPermission?.granted || capturedPhoto) ? 1 : 0.5}
@@ -594,143 +670,540 @@ export default function HomeScreen({ navigation }: any) {
                       <Ionicons 
                         name={capturedPhoto ? "close" : "camera-reverse-outline"} 
                         size={20} 
-                        color="#FFFFFF" 
+                        color="#000000" 
                       />
                     </Box>
                   </TouchableOpacity>
                 </HStack>
               </Box>
 
-              {/* AI Chat Button & Voice Chat Button */}
-              <Box pb={20} px={20}>
-                <VStack gap={10}>
-                  {/* AI Chat Button - Opens Modal */}
-                  <TouchableOpacity 
-                    onPress={expandChat}
-                    activeOpacity={0.8}
+              {/* Story Chapters Button - Bottom Left - Only show when not captured */}
+              <Box position="absolute" bottom={40} left={40} zIndex={999}>
+                <TouchableOpacity onPress={() => navigation.navigate('Gallery')}>
+                  <Box
+                    w={56}
+                    h={56}
+                    borderRadius={16}
+                    bg="rgba(255,255,255,0.95)"
+                    justifyContent="center"
+                    alignItems="center"
+                    shadowColor="#000"
+                    shadowOffset={{ width: 0, height: 2 }}
+                    shadowOpacity={0.15}
+                    shadowRadius={8}
+                    borderWidth={1}
+                    borderColor="rgba(0,0,0,0.08)"
                   >
-                    <Box
-                      bg="rgba(40,40,40,0.9)"
-                      borderRadius={24}
-                      px={16}
-                      py={12}
+                    <Ionicons name="book" size={24} color="#5DADE2" />
+                  </Box>
+                </TouchableOpacity>
+              </Box>
+
+              {/* AI Bubble Component - Fixed Position */}
+              <Box position="absolute" bottom={20} right={20} zIndex={999}>
+                <AIBubble />
+              </Box>
+            </Box>
+                ) : (
+                  // Scrollable when photo captured
+                  <ScrollView 
+                    ref={scrollViewRef}
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    scrollEnabled={true}
+                    bounces={false}
+                  >
+                    <Box minHeight={height} position="relative">
+              {/* Top Bar - Inside Safe Area */}
+              <Box px={20} py={12}>
+                <HStack justifyContent="space-between" alignItems="center">
+                  <HStack gap={8}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Dashboard')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        <Ionicons name="arrow-back" size={20} color="#000000" />
+                      </Box>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        <Ionicons name="person-circle-outline" size={24} color="#000000" />
+                      </Box>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                        position="relative"
+                      >
+                        <Ionicons name="notifications-outline" size={20} color="#000000" />
+                        {/* Notification Badge */}
+                        <Box
+                          position="absolute"
+                          top={4}
+                          right={4}
+                          w={8}
+                          h={8}
+                          borderRadius={4}
+                          bg="#E74C3C"
+                          borderWidth={1.5}
+                          borderColor="#FFFFFF"
+                        />
+                      </Box>
+                    </TouchableOpacity>
+                  </HStack>
+                  <HStack gap={8}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Gallery')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        <Ionicons name="book-outline" size={20} color="#000000" />
+                      </Box>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Messages')}>
+                      <Box
+                        w={36}
+                        h={36}
+                        borderRadius={18}
+                        bg="rgba(0,0,0,0.08)"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        <Ionicons name="chatbubble-outline" size={20} color="#000000" />
+                      </Box>
+                    </TouchableOpacity>
+                  </HStack>
+                </HStack>
+              </Box>
+
+              {/* Camera Preview Area - Real Camera */}
+              <Box 
+                flex={0}
+                justifyContent="center" 
+                alignItems="center" 
+                px={16}
+                pt={12}
+              >
+                <Box 
+                  w="60%"
+                  style={{ maxWidth: 240 }}
+                  aspectRatio={3/4}
+                  borderRadius={20}
+                  overflow="hidden"
+                  borderWidth={1}
+                  borderColor="#333333"
+                >
+                  <Image
+                    source={{ uri: capturedPhoto }}
+                    style={{ flex: 1, width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                </Box>
+              </Box>
+
+              {/* AI Suggested Tags - Show after photo capture */}
+              {suggestedTags.length > 0 && (
+                <Box px={20} pt={20} pb={12}>
+                  <VStack gap={12}>
+                    <Text fontSize={13} fontWeight="600" color="rgba(0,0,0,0.6)">
+                      Suggested tags:
+                    </Text>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8 }}
                     >
-                      <HStack alignItems="center" gap={10}>
-                        <Ionicons name="sparkles" size={20} color="#5DADE2" />
-                        <Text fontSize={14} color="rgba(255,255,255,0.7)" flex={1}>
-                          Ask AI anything...
-                        </Text>
-                        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.3)" />
-                      </HStack>
+                      {suggestedTags.map((tag, index) => {
+                        const isSelected = selectedTags.includes(tag);
+                        return (
+                          <TouchableOpacity 
+                            key={index}
+                            onPress={() => toggleTag(tag)}
+                          >
+                            <Box
+                              bg={isSelected ? "#5DADE2" : "rgba(0,0,0,0.08)"}
+                              borderRadius={20}
+                              px={16}
+                              py={8}
+                              borderWidth={isSelected ? 0 : 1}
+                              borderColor="rgba(0,0,0,0.15)"
+                            >
+                              <Text 
+                                fontSize={13} 
+                                fontWeight={isSelected ? "600" : "500"}
+                                color={isSelected ? "#FFFFFF" : "#000000"}
+                              >
+                                {tag}
+                              </Text>
+                            </Box>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </VStack>
+                </Box>
+              )}
+
+              {/* Caption Input and Action Buttons - Always show after photo capture */}
+              {!showNewChapterForm && !showChapterDropdown && (
+                <Box px={20} pb={12}>
+                  <VStack gap={16}>
+                    <Box
+                      bg="rgba(0,0,0,0.05)"
+                      borderRadius={16}
+                      borderWidth={1}
+                      borderColor="rgba(0,0,0,0.1)"
+                    >
+                      <TextInput
+                        value={photoCaption}
+                        onChangeText={setPhotoCaption}
+                        placeholder="Add a caption... (optional)"
+                        placeholderTextColor="rgba(0,0,0,0.4)"
+                        multiline
+                        onFocus={() => {
+                          setIsTypingCaption(true);
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }, 100);
+                        }}
+                        onBlur={() => setIsTypingCaption(false)}
+                        style={{
+                          paddingHorizontal: 16,
+                          paddingVertical: 12,
+                          fontSize: 14,
+                          color: '#000000',
+                          minHeight: 60,
+                          maxHeight: 100,
+                          textAlignVertical: 'top',
+                        }}
+                      />
+                    </Box>
+
+                    {/* Two Action Buttons */}
+                    <VStack gap={12}>
+                      {/* Create New Chapter Button */}
+                      <TouchableOpacity onPress={handleCreateNewChapter}>
+                        <Box
+                          bg="#5DADE2"
+                          borderRadius={16}
+                          p={16}
+                        >
+                          <HStack gap={12} alignItems="center" justifyContent="center">
+                            <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+                            <Text fontSize={15} fontWeight="600" color="#FFFFFF">
+                              Create New Chapter
+                            </Text>
+                          </HStack>
+                        </Box>
+                      </TouchableOpacity>
+
+                      {/* Add to Existing Chapter Button */}
+                      <TouchableOpacity onPress={() => setShowChapterDropdown(!showChapterDropdown)}>
+                        <Box
+                          bg="#FFFFFF"
+                          borderRadius={16}
+                          p={16}
+                          borderWidth={2}
+                          borderColor="#5DADE2"
+                        >
+                          <HStack gap={12} alignItems="center" justifyContent="center">
+                            <Ionicons name="folder-open" size={20} color="#5DADE2" />
+                            <Text fontSize={15} fontWeight="600" color="#5DADE2">
+                              Add to Existing Chapter
+                            </Text>
+                          </HStack>
+                        </Box>
+                      </TouchableOpacity>
+                    </VStack>
+                  </VStack>
+                </Box>
+              )}
+
+              {/* New Chapter Form - Show when Create New Chapter is clicked */}
+              {showNewChapterForm && (
+                <Box px={20} pb={12}>
+                  <VStack gap={16}>
+                    <Text fontSize={15} fontWeight="600" color="#2C3E50">
+                      Create New Chapter
+                    </Text>
+                    
+                    {(
+                      // New Chapter Form
+                      <Box
+                        bg="rgba(93,173,226,0.1)"
+                        borderRadius={16}
+                        p={16}
+                        borderWidth={1}
+                        borderColor="#5DADE2"
+                      >
+                        <VStack gap={14}>
+                          <HStack justifyContent="space-between" alignItems="center">
+                            <Text fontSize={15} fontWeight="600" color="#2C3E50">
+                              New Chapter
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowNewChapterForm(false)}>
+                              <Box
+                                bg="#E8E8E8"
+                                borderRadius={8}
+                                px={12}
+                                py={6}
+                              >
+                                <Text fontSize={13} fontWeight="600" color="#5A5A5A">
+                                  Cancel
+                                </Text>
+                              </Box>
+                            </TouchableOpacity>
+                          </HStack>
+
+                          {/* Chapter Name Input */}
+                          <Box>
+                            <Text fontSize={13} fontWeight="500" color="#7F8C8D" mb={6}>
+                              Chapter Name *
+                            </Text>
+                            <Box
+                              bg="#FFFFFF"
+                              borderRadius={12}
+                              borderWidth={1}
+                              borderColor="rgba(0,0,0,0.1)"
+                            >
+                              <TextInput
+                                value={newChapterName}
+                                onChangeText={setNewChapterName}
+                                placeholder="e.g. Summer Vacation 2024"
+                                placeholderTextColor="rgba(0,0,0,0.4)"
+                                style={{
+                                  paddingHorizontal: 14,
+                                  paddingVertical: 10,
+                                  fontSize: 14,
+                                  color: '#000000',
+                                }}
+                              />
+                            </Box>
+                          </Box>
+
+                          {/* Chapter Description Input */}
+                          <Box>
+                            <Text fontSize={13} fontWeight="500" color="#7F8C8D" mb={6}>
+                              Description (optional)
+                            </Text>
+                            <Box
+                              bg="#FFFFFF"
+                              borderRadius={12}
+                              borderWidth={1}
+                              borderColor="rgba(0,0,0,0.1)"
+                            >
+                              <TextInput
+                                value={newChapterDescription}
+                                onChangeText={setNewChapterDescription}
+                                placeholder="Describe this chapter..."
+                                placeholderTextColor="rgba(0,0,0,0.4)"
+                                multiline
+                                numberOfLines={3}
+                                style={{
+                                  paddingHorizontal: 14,
+                                  paddingVertical: 10,
+                                  fontSize: 14,
+                                  color: '#000000',
+                                  minHeight: 70,
+                                  textAlignVertical: 'top',
+                                }}
+                              />
+                            </Box>
+                          </Box>
+
+                          {/* Create Button */}
+                          <TouchableOpacity 
+                            onPress={createNewChapterWithPhoto}
+                            disabled={!newChapterName.trim()}
+                          >
+                            <Box
+                              bg={newChapterName.trim() ? "#5DADE2" : "rgba(0,0,0,0.1)"}
+                              borderRadius={12}
+                              py={12}
+                              alignItems="center"
+                            >
+                              <Text 
+                                fontSize={14} 
+                                fontWeight="600" 
+                                color={newChapterName.trim() ? "#FFFFFF" : "#95A5A6"}
+                              >
+                                Create Chapter & Add Photo
+                              </Text>
+                            </Box>
+                          </TouchableOpacity>
+                        </VStack>
+                      </Box>
+                    )}
+                  </VStack>
+                </Box>
+              )}
+
+              {/* Existing Chapters Dropdown - Show when Add to Existing Chapter is clicked */}
+              {showChapterDropdown && (
+                <Box px={20} pb={12}>
+                  <VStack gap={12}>
+                    <HStack justifyContent="space-between" alignItems="center">
+                      <Text fontSize={15} fontWeight="600" color="#2C3E50">
+                        Select Chapter
+                      </Text>
+                      <TouchableOpacity onPress={() => setShowChapterDropdown(false)}>
+                        <Box
+                          bg="#E8E8E8"
+                          borderRadius={8}
+                          px={12}
+                          py={6}
+                        >
+                          <Text fontSize={13} fontWeight="600" color="#5A5A5A">
+                            Cancel
+                          </Text>
+                        </Box>
+                      </TouchableOpacity>
+                    </HStack>
+
+                    <VStack gap={8}>
+                      {myChapters.map((chapter) => (
+                        <TouchableOpacity 
+                          key={chapter.id}
+                          onPress={() => {
+                            setSelectedChapter(chapter.id);
+                            addPhotoToChapter(chapter.id);
+                          }}
+                        >
+                          <Box
+                            bg="rgba(93,173,226,0.05)"
+                            borderRadius={12}
+                            p={14}
+                            borderWidth={1}
+                            borderColor={selectedChapter === chapter.id ? "#5DADE2" : "rgba(0,0,0,0.1)"}
+                          >
+                            <HStack gap={12} alignItems="center">
+                              <Text fontSize={24}>
+                                {chapter.icon}
+                              </Text>
+                              <Text fontSize={15} fontWeight="600" color="#2C3E50" flex={1}>
+                                {chapter.title}
+                              </Text>
+                              <Ionicons name="chevron-forward" size={18} color="#5DADE2" />
+                            </HStack>
+                          </Box>
+                        </TouchableOpacity>
+                      ))}
+                    </VStack>
+                  </VStack>
+                </Box>
+              )}
+
+              {/* Bottom Camera Controls - Functional */}
+              <Box pb={12} px={20}>
+                <HStack justifyContent="center" alignItems="center" w="100%" gap={35}>
+                  <TouchableOpacity>
+                    <Box
+                      w={42}
+                      h={42}
+                      borderRadius={12}
+                      bg="rgba(0,0,0,0.08)"
+                      justifyContent="center"
+                      alignItems="center"
+                    >
+                      <Ionicons name="share-outline" size={20} color="#000000" />
                     </Box>
                   </TouchableOpacity>
 
-                  {/* Voice Chat Button */}
-                  <Pressable
-                    onPressIn={handlePressIn}
-                    onPressOut={handlePressOut}
+                  {/* Main Button - Save Photo */}
+                  <TouchableOpacity 
+                    onPress={savePhoto} 
                   >
+                    {/* Outer black border */}
                     <Box
-                      bg={isRecording ? "rgba(93,173,226,0.3)" : "rgba(93,173,226,0.15)"}
-                      borderRadius={24}
-                      borderWidth={1}
-                      borderColor={isRecording ? "#5DADE2" : "rgba(93,173,226,0.3)"}
-                      py={12}
-                      px={16}
-                      position="relative"
-                      overflow="hidden"
+                      w={74}
+                      h={74}
+                      borderRadius={37}
+                      bg="#000000"
+                      justifyContent="center"
+                      alignItems="center"
                     >
-                      {/* Progress bar background */}
-                      {isPressing && !isRecording && (
-                        <Animated.View
+                      {/* White gap */}
+                      <Box
+                        w={66}
+                        h={66}
+                        borderRadius={33}
+                        bg="#FFFFFF"
+                        justifyContent="center"
+                        alignItems="center"
+                      >
+                        {/* Inner colored button with gradient */}
+                        <LinearGradient
+                          colors={['#34C759', '#34C759']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
                           style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(93,173,226,0.2)',
-                            width: pressAnimation.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: ['0%', '100%'],
-                            }),
+                            width: 58,
+                            height: 58,
+                            borderRadius: 29,
+                            justifyContent: 'center',
+                            alignItems: 'center',
                           }}
-                        />
-                      )}
+                        >
+                          <Ionicons 
+                            name="checkmark" 
+                            size={32} 
+                            color="#FFFFFF" 
+                          />
+                        </LinearGradient>
+                      </Box>
+                    </Box>
+                  </TouchableOpacity>
 
-                      {isRecording ? (
-                        // Recording UI with Wave Animation
-                        <VStack gap={8} alignItems="center">
-                          <HStack gap={4} alignItems="center" h={24}>
-                            <Animated.View style={{ transform: [{ scaleY: waveAnimation1 }] }}>
-                              <Box w={3} h={12} bg="#5DADE2" borderRadius={2} />
-                            </Animated.View>
-                            <Animated.View style={{ transform: [{ scaleY: waveAnimation2 }] }}>
-                              <Box w={3} h={16} bg="#5DADE2" borderRadius={2} />
-                            </Animated.View>
-                            <Animated.View style={{ transform: [{ scaleY: waveAnimation3 }] }}>
-                              <Box w={3} h={20} bg="#5DADE2" borderRadius={2} />
-                            </Animated.View>
-                            <Animated.View style={{ transform: [{ scaleY: waveAnimation4 }] }}>
-                              <Box w={3} h={16} bg="#5DADE2" borderRadius={2} />
-                            </Animated.View>
-                            <Animated.View style={{ transform: [{ scaleY: waveAnimation5 }] }}>
-                              <Box w={3} h={12} bg="#5DADE2" borderRadius={2} />
-                            </Animated.View>
-                          </HStack>
-                          <Text fontSize={12} fontWeight="600" color="#5DADE2">
-                            Đang nghe...
-                          </Text>
-                          {recognizedText ? (
-                            <Text fontSize={13} color="#FFFFFF" textAlign="center" px={8}>
-                              {recognizedText}
-                            </Text>
-                          ) : null}
-                        </VStack>
-                      ) : (
-                        // Default UI
-                        <HStack justifyContent="center" alignItems="center" gap={8} zIndex={1}>
-                          <Ionicons name="mic" size={20} color="#5DADE2" />
-                          <Text fontSize={13} fontWeight="600" color="#5DADE2">
-                            {isPressing ? 'Giữ lại...' : 'Giữ để nói chuyện'}
-                          </Text>
-                        </HStack>
-                      )}
-                    </Box>
-                  </Pressable>
-                  
-                  {/* Display recognized text after recording */}
-                  {!isRecording && recognizedText && (
+                  {/* Right Button - Retake */}
+                  <TouchableOpacity onPress={retakePhoto}>
                     <Box
-                      bg="rgba(40,40,40,0.9)"
-                      borderRadius={16}
-                      px={16}
-                      py={12}
-                      borderWidth={1}
-                      borderColor="rgba(93,173,226,0.3)"
+                      w={42}
+                      h={42}
+                      borderRadius={12}
+                      bg="rgba(0,0,0,0.08)"
+                      justifyContent="center"
+                      alignItems="center"
                     >
-                      <VStack gap={8}>
-                        <HStack justifyContent="space-between" alignItems="center">
-                          <Text fontSize={12} fontWeight="600" color="#5DADE2">
-                            Văn bản nhận diện:
-                          </Text>
-                          <TouchableOpacity onPress={() => setRecognizedText('')}>
-                            <Ionicons name="close-circle" size={20} color="rgba(255,255,255,0.5)" />
-                          </TouchableOpacity>
-                        </HStack>
-                        <Text fontSize={14} color="#FFFFFF">
-                          {recognizedText}
-                        </Text>
-                      </VStack>
+                      <Ionicons name="close" size={20} color="#000000" />
                     </Box>
-                  )}
-                </VStack>
+                  </TouchableOpacity>
+                </HStack>
+              </Box>
+
+              {/* AI Bubble Component - Fixed Position */}
+              <Box position="absolute" bottom={20} right={20} zIndex={999}>
+                <AIBubble />
               </Box>
             </Box>
+          </ScrollView>
+                )}
           </SafeAreaView>
-          </KeyboardAvoidingView>
         </View>
-      );
-    }
+      </View>
+    );
+  }
 
     // Photo View (Friend's photo)
     return (
@@ -844,164 +1317,25 @@ export default function HomeScreen({ navigation }: any) {
   const viewConfigRef = useRef({ viewAreaCoveragePercentThreshold: 50 });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#000000' }} edges={[]}>
-      <StatusBar barStyle="light-content" />
-      <Box flex={1} bg="#000000">
-        <FlatList
-          data={familyPhotos}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-          onViewableItemsChanged={onViewRef.current}
-          viewabilityConfig={viewConfigRef.current}
-        />
-      </Box>
-
-      {/* AI Chat Modal */}
-      <Modal
-        visible={isChatModalVisible}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={closeChat}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} edges={[]}>
+      <StatusBar barStyle="dark-content" />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <StatusBar barStyle="light-content" />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1, backgroundColor: '#1A1A1A' }}
-          keyboardVerticalOffset={0}
-        >
-          <Box flex={1} bg="#1A1A1A">
-            {/* Header */}
-            <HStack 
-              justifyContent="space-between" 
-              alignItems="center" 
-              px={20} 
-              py={16}
-              pt={Platform.OS === 'ios' ? 60 : 16}
-              borderBottomWidth={1}
-              borderBottomColor="rgba(255,255,255,0.1)"
-            >
-                  <HStack alignItems="center" gap={10}>
-                    <Ionicons name="sparkles" size={24} color="#5DADE2" />
-                    <Text fontSize={18} fontWeight="600" color="#FFFFFF">
-                      AI Assistant
-                    </Text>
-                  </HStack>
-                  <TouchableOpacity onPress={closeChat}>
-                    <Box
-                      w={32}
-                      h={32}
-                      borderRadius={16}
-                      bg="rgba(255,255,255,0.1)"
-                      justifyContent="center"
-                      alignItems="center"
-                    >
-                      <Ionicons name="close" size={20} color="#FFFFFF" />
-                    </Box>
-                  </TouchableOpacity>
-                </HStack>
-
-                {/* Chat History */}
-                <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 20 }}
-              >
-                {chatHistory.length === 0 ? (
-                  <VStack gap={20} alignItems="center" mt={60}>
-                    <Box
-                      w={80}
-                      h={80}
-                      borderRadius={40}
-                      bg="rgba(93,173,226,0.15)"
-                      justifyContent="center"
-                      alignItems="center"
-                    >
-                      <Ionicons name="sparkles" size={40} color="#5DADE2" />
-                    </Box>
-                    <VStack gap={8} alignItems="center">
-                      <Text fontSize={20} fontWeight="600" color="#FFFFFF">
-                        Start a Conversation
-                      </Text>
-                      <Text fontSize={14} color="rgba(255,255,255,0.5)" textAlign="center" px={40}>
-                        Ask me anything about your memories, photos, or get creative ideas!
-                      </Text>
-                    </VStack>
-                  </VStack>
-                ) : (
-                  <VStack gap={16}>
-                    {chatHistory.map((chat, index) => (
-                      <Box
-                        key={index}
-                        alignSelf={chat.role === 'user' ? 'flex-end' : 'flex-start'}
-                        maxWidth="80%"
-                      >
-                        <Box
-                          bg={chat.role === 'user' ? '#5DADE2' : 'rgba(255,255,255,0.1)'}
-                          borderRadius={16}
-                          px={16}
-                          py={12}
-                        >
-                          <Text fontSize={14} color="#FFFFFF">
-                            {chat.message}
-                          </Text>
-                        </Box>
-                      </Box>
-                    ))}
-                  </VStack>
-                )}
-              </ScrollView>
-
-              {/* Input Area */}
-              <Box
-                px={20}
-                py={16}
-                borderTopWidth={1}
-                borderTopColor="rgba(255,255,255,0.1)"
-              >
-                <HStack gap={12} alignItems="flex-end">
-                  <Box flex={1}>
-                    <TextInput
-                      value={chatMessage}
-                      onChangeText={setChatMessage}
-                      placeholder="Type your message..."
-                      placeholderTextColor="rgba(255,255,255,0.4)"
-                      multiline
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.1)',
-                        borderRadius: 20,
-                        paddingHorizontal: 16,
-                        paddingVertical: 12,
-                        fontSize: 15,
-                        color: '#FFFFFF',
-                        maxHeight: 100,
-                      }}
-                    />
-                  </Box>
-                  <TouchableOpacity 
-                    onPress={sendMessage}
-                    disabled={!chatMessage.trim()}
-                  >
-                    <Box
-                      w={44}
-                      h={44}
-                      borderRadius={22}
-                      bg={chatMessage.trim() ? '#5DADE2' : 'rgba(255,255,255,0.1)'}
-                      justifyContent="center"
-                      alignItems="center"
-                    >
-                      <Ionicons 
-                        name="send" 
-                        size={20} 
-                        color={chatMessage.trim() ? '#FFFFFF' : 'rgba(255,255,255,0.3)'}
-                      />
-                    </Box>
-                  </TouchableOpacity>
-                </HStack>
-              </Box>
-            </Box>
-        </KeyboardAvoidingView>
-      </Modal>
+        <Box flex={1} bg="#FFFFFF">
+          <FlatList
+            data={familyPhotos}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+            onViewableItemsChanged={onViewRef.current}
+            viewabilityConfig={viewConfigRef.current}
+          />
+        </Box>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

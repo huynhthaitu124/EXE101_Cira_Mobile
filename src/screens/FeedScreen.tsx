@@ -15,6 +15,7 @@ import {
   Text,
 } from '@gluestack-ui/themed';
 import { Ionicons } from '@expo/vector-icons';
+import AIBubble from '../components/AIBubble';
 
 const { width } = Dimensions.get('window');
 
@@ -276,6 +277,9 @@ export default function FeedScreen({ navigation }: any) {
             </Box>
           ))}
         </ScrollView>
+
+        {/* AI Bubble */}
+        <AIBubble />
       </Box>
     </SafeAreaView>
   );

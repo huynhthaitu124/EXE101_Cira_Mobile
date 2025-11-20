@@ -8,6 +8,7 @@ import {
   Pressable,
 } from '@gluestack-ui/themed';
 import { Ionicons } from '@expo/vector-icons';
+import AIBubble from '../components/AIBubble';
 
 const { width, height } = Dimensions.get('window');
 
@@ -168,6 +169,9 @@ export default function UploadScreen() {
           </HStack>
         </VStack>
       </Box>
+
+      {/* AI Bubble */}
+      <AIBubble />
     </Box>
   );
 }

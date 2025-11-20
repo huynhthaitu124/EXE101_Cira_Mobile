@@ -11,6 +11,7 @@ import {
   InputSlot,
 } from '@gluestack-ui/themed';
 import { Ionicons } from '@expo/vector-icons';
+import AIBubble from '../components/AIBubble';
 
 const { width } = Dimensions.get('window');
 const imageSize = (width - 4) / 3; // 3 columns with 1px gaps
@@ -105,6 +106,9 @@ export default function SearchScreen() {
           </VStack>
         </Box>
       </ScrollView>
+
+      {/* AI Bubble */}
+      <AIBubble />
     </Box>
   );
 }
