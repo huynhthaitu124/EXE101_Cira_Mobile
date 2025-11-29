@@ -8,17 +8,24 @@
 import SwiftUI
 
 struct RootNavigationView: View {
-    @State private var selectedTab: Tab = .camera
+    @State private var selectedView: AppView = .camera
     
-    enum Tab {
+    enum AppView {
         case camera, gallery, feed, profile
     }
     
     var body: some View {
         NavigationStack {
-            CameraView()
-                .navigationBarHidden(true)
+            switch selectedView {
+            case .camera:
+                CameraView()
+            case .gallery:
+                GalleryView()
+            case .feed, .profile:
+                Text("Coming soon")
+            }
         }
+        .navigationBarHidden(true)
     }
 }
 

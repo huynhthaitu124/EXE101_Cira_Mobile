@@ -9,14 +9,14 @@ import SwiftUI
 
 struct CameraView: View {
     @EnvironmentObject var viewModel: CameraViewModel
-    @Environment(\.safeAreaInsets) private var safeAreaInsets
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 // MARK: - Background (white)
                 Color.white
-                    .ignoresSafeEdges()
+                    .ignoresSafeArea()
                 
                 // MARK: - Gradient + Blur Overlay (from RN line 292-331)
                 if viewModel.capturedPhoto != nil {
@@ -41,41 +41,14 @@ struct CameraView: View {
                         
                         Spacer()
                     }
-                    .ignoresSafeEdges()
+                    .ignoresSafeArea()
                 }
                 
                 // MARK: - Main Content
                 VStack(spacing: 0) {
-                    // MARK: - Top Bar (from RN line 339-419)
-                    HStack {
-                        HStack(spacing: 8) {
-                            GlassButton(icon: "arrow.left") {
-                                // Navigate to Dashboard
-                            }
-                            GlassButton(icon: "person.circle") {
-                                // Navigate to Profile
-                            }
-                            GlassButton(icon: "bell", hasBadge: true) {
-                                // Navigate to Notifications
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        HStack(spacing: 8) {
-                            GlassButton(icon: "book") {
-                                // Navigate to Gallery
-                            }
-                            GlassButton(icon: "message") {
-                                // Navigate to Messages
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    
                     // MARK: - Camera/Photo Preview (from RN line 422-471)
                     Spacer()
+                        .frame(height: 20)
                     
                     if let photo = viewModel.capturedPhoto {
                         // Show captured photo (from RN line 442-448)
@@ -150,6 +123,44 @@ struct CameraView: View {
                         .padding(.bottom, 12)
                     }
                     
+                    // MARK: - Voice Recording Button (NEW - Phase 3)
+                    if viewModel.capturedPhoto != nil {
+                        Button(action: {
+                            viewModel.showVoiceRecording = true
+                        }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "mic.circle.fill")
+                                    .font(.system(size: 24))
+                                
+                                if let voiceNote = viewModel.currentVoiceNote {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Voice story added")
+                                            .font(.system(size: 14, weight: .semibold))
+                                        Text(formatDuration(voiceNote.duration))
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.white.opacity(0.8))
+                                    }
+                                } else {
+                                    Text("Add voice story")
+                                        .font(.system(size: 16, weight: .medium))
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14))
+                            }
+                            .foregroundColor(.white)
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(viewModel.currentVoiceNote != nil ? Color.green : Color.brandBlue)
+                            )
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 12)
+                    }
+                    
                     // MARK: - Bottom Controls (from RN line 586-678)
                     HStack(spacing: 35) {
                         // Left button - Gallery
@@ -177,6 +188,7 @@ struct CameraView: View {
                         }) {
                             CameraShutterButton(isCaptured: viewModel.capturedPhoto != nil)
                         }
+                        .disabled(viewModel.capturedPhoto == nil && !viewModel.cameraService.isSessionRunning)
                         
                         // Right button - Flip/Retake (from RN line 657-676)
                         Button(action: {
@@ -201,6 +213,27 @@ struct CameraView: View {
                 }
             }
         }
+        // MARK: - Voice Recording Modal
+        .overlay(
+            Group {
+                if viewModel.showVoiceRecording {
+                    VoiceRecordingView(
+                        isPresented: $viewModel.showVoiceRecording,
+                        recordedVoiceNote: $viewModel.currentVoiceNote
+                    )
+                    .transition(.opacity)
+                }
+            }
+        )
+        .navigationTitle("Camera")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // MARK: - Format Duration Helper
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }
 

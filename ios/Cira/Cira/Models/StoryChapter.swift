@@ -14,9 +14,12 @@ struct StoryChapter: Identifiable, Codable {
     var icon: String // Emoji
     var coverColor: String // Hex color
     var photoCount: Int
-    var coverImageURL: String?
+    var coverImageURL: String? // Optional cover image
     var createdAt: Date
     var photos: [Photo]
+    var isFavorite: Bool // Favorite toggle
+    var author: String? // For family chapters
+    var authorInitial: String? // For family chapters avatar
     
     init(
         id: UUID = UUID(),
@@ -27,7 +30,10 @@ struct StoryChapter: Identifiable, Codable {
         photoCount: Int = 0,
         coverImageURL: String? = nil,
         createdAt: Date = Date(),
-        photos: [Photo] = []
+        photos: [Photo] = [],
+        isFavorite: Bool = false,
+        author: String? = nil,
+        authorInitial: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -38,5 +44,8 @@ struct StoryChapter: Identifiable, Codable {
         self.coverImageURL = coverImageURL
         self.createdAt = createdAt
         self.photos = photos
+        self.isFavorite = isFavorite
+        self.author = author
+        self.authorInitial = authorInitial
     }
 }

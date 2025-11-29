@@ -17,6 +17,7 @@ struct Photo: Identifiable, Codable {
     var timestamp: Date
     var chapterId: String?
     var thumbnailURL: String?
+    var voiceNote: VoiceNote? // Voice story attached to photo
     
     init(
         id: UUID = UUID(),
@@ -26,7 +27,8 @@ struct Photo: Identifiable, Codable {
         caption: String = "",
         timestamp: Date = Date(),
         chapterId: String? = nil,
-        thumbnailURL: String? = nil
+        thumbnailURL: String? = nil,
+        voiceNote: VoiceNote? = nil
     ) {
         self.id = id
         self.imageURL = imageURL
@@ -36,5 +38,6 @@ struct Photo: Identifiable, Codable {
         self.timestamp = timestamp
         self.chapterId = chapterId
         self.thumbnailURL = thumbnailURL
+        self.voiceNote = voiceNote
     }
 }

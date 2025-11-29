@@ -29,9 +29,22 @@
 		13A417EB2EDAF440003DC3F2 /* CiraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CiraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		13A418272EDAF852003DC3F2 /* Exceptions for "Cira" folder in "Cira" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 13A417D12EDAF43E003DC3F2 /* Cira */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		13A417D42EDAF43E003DC3F2 /* Cira */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				13A418272EDAF852003DC3F2 /* Exceptions for "Cira" folder in "Cira" target */,
+			);
 			path = Cira;
 			sourceTree = "<group>";
 		};
@@ -397,6 +410,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Cira/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Cira needs camera access to capture photos";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Cira needs to save photos to library\nCira needs to save photos to library\nCira needs to save photos to library\n";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Cira uses speech recognition for transcription";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -428,6 +445,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Cira/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Cira needs camera access to capture photos";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Cira needs to save photos to library\nCira needs to save photos to library\nCira needs to save photos to library\n";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Cira uses speech recognition for transcription";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
